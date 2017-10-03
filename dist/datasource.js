@@ -40,14 +40,24 @@ System.register(['lodash'], function (_export, _context) {
 
           console.info('current.json: ');
           console.info(instanceSettings.jsonData);
+          console.info('instanceSettings');
+          console.info(instanceSettings);
+
           this.sensorid = instanceSettings.jsonData['sensorid'];
           this.apikey = instanceSettings.jsonData['apikey'];
+
           this.type = instanceSettings.type;
           this.name = instanceSettings.name;
           this.q = $q;
           this.backendSrv = backendSrv;
           this.templateSrv = templateSrv;
           this.withCredentials = instanceSettings.withCredentials;
+          console.info('creds');
+          console.info(instanceSettings.withCredentials);
+
+          console.info('basic auth');
+          console.info(instanceSettings.basicAuth);
+
           this.headers = { 'Content-Type': 'application/json' };
           if (typeof instanceSettings.basicAuth === 'string' && instanceSettings.basicAuth.length > 0) {
             this.headers['Authorization'] = instanceSettings.basicAuth;
@@ -61,7 +71,9 @@ System.register(['lodash'], function (_export, _context) {
             var url = baseUrl + str;
 
             var opt = [];
-            opt.push('apikey=' + this.apikey);
+
+            if (this.apikey != "") opt.push('apikey=' + this.apikey);
+
             if (arr) {
               for (var i = 0; i < arr.length; ++i) {
                 opt.push(arr[i]);
@@ -73,7 +85,6 @@ System.register(['lodash'], function (_export, _context) {
               url += '?' + query;
             }
 
-            console.info('buildUrl: ' + url);
             return url;
           }
         }, {
@@ -81,7 +92,12 @@ System.register(['lodash'], function (_export, _context) {
           value: function buildQueryUrl(query) {
 
             var arr = [];
-            //arr.push('');
+
+            if (this.sensorid != null) {
+              arr.push('id=' + this.sensorid);
+            }
+
+            arr.push('resulttype=scalarvalue');
 
             var url = this.buildUrl("/streams", arr);
             return url;
@@ -110,18 +126,14 @@ System.register(['lodash'], function (_export, _context) {
               method: 'GET'
             }).then(function (x) {
               var pq = _this.parseQuery(x, query);
-              console.info('returning query');
               return pq;
             }).then(function (x) {
-              console.info('done!');
               return x;
             });
           }
         }, {
           key: 'parseData',
           value: function parseData(data) {
-            console.info('parseData');
-            console.info(data);
 
             var result = [];
 
@@ -132,15 +144,11 @@ System.register(['lodash'], function (_export, _context) {
               var time = Object.keys(d)[0];
               var timevalue = new Date(time).getTime();
 
-              //console.info('d=' + d);
               for (var key in d[time]) {
-                //console.info('key=' + key);
                 var value = d[time][key].v;
                 if (value != null) {
-                  //console.info('value' + value);
 
                   if (!(key in data2)) {
-                    console.info('creating dict for ' + key);
                     data2[key] = [];
                   }
 
@@ -157,18 +165,12 @@ System.register(['lodash'], function (_export, _context) {
               };
               result.push(item);
             }
-            console.info('result');
-            console.info(result);
             return result;
           }
         }, {
           key: 'parseQuery',
           value: function parseQuery(str, query) {
             var _this2 = this;
-
-            console.info('parseQuery');
-            console.info(str);
-            console.info(query);
 
             var streams = str.data._embedded.streams;
 
@@ -196,110 +198,6 @@ System.register(['lodash'], function (_export, _context) {
             });
 
             return req;
-
-            /*
-            console.info(str);
-            console.info(query);
-              var data = [];
-            var data_result = {
-              data: data
-            };
-              var promise = this.q(() => {});
-              var streams = str.data._embedded.streams;
-            for (var i = 0; i < streams.length; ++i) {
-                (i => {
-                var id = streams[i].id;
-                console.info('id=');
-                console.info(id);
-                
-                promise.then(() => {
-              
-                  var item = {
-                    "target": id
-                  };
-                    var p1 = this.getDataPoints(id, query);
-                  p1.then(y => {
-                    console.info('setting datapoints');
-                    item.datapoints = y.data;
-                  });
-                  console.info('resolving?');
-                  Promise.resolve(p1);
-                  console.info('resolved');
-                  x.data.push(item);
-                    console.info(x);
-                  return x;
-                });
-              })(i);
-                
-                
-            
-            */
-
-            /*
-            var item = {
-              "target": id
-            };
-              if(promise == null)
-            {
-              promise = this.getDataPoints(id, query);
-            }
-            promise.then(y => {
-              });
-            result.push(item);*/
-
-            /*
-                  ((id, item) => {
-                    promise.then(x => {
-            
-                      console.info('getting getDataPoints promise');
-                      return this.getDataPoints(id, query).then(y => {
-                        console.info('setting datapoints');
-                        item.datapoints = y.data;
-                      });
-                    });
-                  })(id, item);
-            
-            
-            
-                  result.push(item);*/
-
-            /*
-            promise.then(x => {
-              var prom = this.getDataPoints(id, query);
-              prom.then(y => {
-                item.datapoints = y.data;
-              });
-              return prom;
-            });*/
-
-            /*
-            
-            
-            // closure id
-            (id => {
-              console.info('inside closure');
-              promise.then(x => {
-                var item = {
-                  "target": id
-                };
-                  var dp1 = (item => {
-                  console.info('inside closure2');
-                            
-                var dp = this.getDataPoints(id, query);
-                dp.then(x => {
-                  console.info('x - dp');
-                  console.info(x);
-                  item.datapoints = x.data;
-                });
-                return dp;
-                })(item);
-                  x.data.push(item);
-                return dp1;
-              });
-            })(id);*/
-            /*  }
-                  console.info('returning promise');
-              return promise;*/
           }
         }, {
           key: 'makeISOString',
@@ -308,22 +206,15 @@ System.register(['lodash'], function (_export, _context) {
               return null;
             }
 
-            console.info(v);
             var str = v.toISOString();
-            console.info(str);
             return str;
           }
         }, {
           key: 'getDataPoints',
           value: function getDataPoints(id, query) {
 
-            console.info('getDataPoints');
-
             var first = this.makeISOString(query.range.from);
             var last = this.makeISOString(query.range.to);
-
-            console.info('query');
-            console.info(query);
 
             var opt = [];
             opt.push('streamid=' + id);
@@ -332,8 +223,6 @@ System.register(['lodash'], function (_export, _context) {
 
             opt.push('limit=' + query.maxDataPoints);
 
-            console.info('options:');
-            console.info(opt);
             var url = this.buildUrl('/observations', opt);
 
             var req = this.doRequest({

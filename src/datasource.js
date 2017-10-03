@@ -5,14 +5,24 @@ export class GenericDatasource {
   constructor(instanceSettings, $q, backendSrv, templateSrv) {
     console.info('current.json: ');
     console.info(instanceSettings.jsonData);
+    console.info('instanceSettings');
+    console.info(instanceSettings);
+
     this.sensorid = instanceSettings.jsonData['sensorid'];
     this.apikey = instanceSettings.jsonData['apikey'];
+
     this.type = instanceSettings.type;
     this.name = instanceSettings.name;
     this.q = $q;
     this.backendSrv = backendSrv;
     this.templateSrv = templateSrv;
     this.withCredentials = instanceSettings.withCredentials;
+    console.info('creds');
+    console.info(instanceSettings.withCredentials);
+
+    console.info('basic auth');
+    console.info(instanceSettings.basicAuth);
+
     this.headers = { 'Content-Type': 'application/json' };
     if (typeof instanceSettings.basicAuth === 'string' && instanceSettings.basicAuth.length > 0) {
       this.headers['Authorization'] = instanceSettings.basicAuth;
@@ -26,7 +36,10 @@ export class GenericDatasource {
 
 
     var opt = [];
-    opt.push('apikey=' + this.apikey);
+
+    if(this.apikey != "")
+      opt.push('apikey=' + this.apikey);
+
     if (arr) {
       for (var i = 0; i < arr.length; ++i)
         opt.push(arr[i]);
@@ -37,14 +50,20 @@ export class GenericDatasource {
       url += '?' + query
     }
 
-    console.info('buildUrl: ' + url)
     return url;
   }
 
   buildQueryUrl(query) {
 
     var arr = [];
-    //arr.push('');
+    
+
+    if(this.sensorid != null)
+    {
+      arr.push('id=' + this.sensorid);
+    }
+
+    arr.push('resulttype=scalarvalue');
 
     var url = this.buildUrl("/streams", arr);
     return url;
@@ -68,17 +87,13 @@ export class GenericDatasource {
       method: 'GET'
     }).then(x => {
       var pq = this.parseQuery(x, query);
-      console.info('returning query');
       return pq;
     }).then(x => {
-      console.info('done!');
       return x;
     });
   }
 
   parseData(data) {
-    console.info('parseData');
-    console.info(data);
 
     var result = [];
 
@@ -89,16 +104,12 @@ export class GenericDatasource {
       var time = Object.keys(d)[0];
       var timevalue = new Date(time).getTime();
 
-      //console.info('d=' + d);
       for (var key in d[time]) {
-        //console.info('key=' + key);
         var value = d[time][key].v;
         if (value != null) {
-          //console.info('value' + value);
 
           if (!(key in data2))
           {
-            console.info('creating dict for ' + key);
             data2[key] = [];
           }
 
@@ -115,16 +126,11 @@ export class GenericDatasource {
       };
       result.push(item);
     }
-    console.info('result');
-    console.info(result);
     return result;
   }
 
   parseQuery(str, query) {
 
-    console.info('parseQuery');
-    console.info(str);
-    console.info(query);
 
     var streams = str.data._embedded.streams;
 
@@ -159,157 +165,24 @@ export class GenericDatasource {
 
 
 
-    /*
-    console.info(str);
-    console.info(query);
-
-    var data = [];
-    var data_result = {
-      data: data
-    };
-
-    var promise = this.q(() => {});
-
-    var streams = str.data._embedded.streams;
-    for (var i = 0; i < streams.length; ++i) {
-
-      (i => {
-        var id = streams[i].id;
-        console.info('id=');
-        console.info(id);
-        
-        promise.then(() => {
-      
-          var item = {
-            "target": id
-          };
-
-          var p1 = this.getDataPoints(id, query);
-          p1.then(y => {
-            console.info('setting datapoints');
-            item.datapoints = y.data;
-          });
-          console.info('resolving?');
-          Promise.resolve(p1);
-          console.info('resolved');
-          x.data.push(item);
-
-          console.info(x);
-          return x;
-        });
-      })(i);
-
-      
-
-      
-
-
-
-*/
-
-
-
-
-
-    /*
-    var item = {
-      "target": id
-    };
-
-    if(promise == null)
-    {
-      promise = this.getDataPoints(id, query);
-    }
-    promise.then(y => {
-
-    });
-    result.push(item);*/
-
-    /*
-          ((id, item) => {
-            promise.then(x => {
     
-              console.info('getting getDataPoints promise');
-              return this.getDataPoints(id, query).then(y => {
-                console.info('setting datapoints');
-                item.datapoints = y.data;
-              });
-            });
-          })(id, item);
-    
-    
-    
-          result.push(item);*/
-
-
-
-
-    /*
-    promise.then(x => {
-      var prom = this.getDataPoints(id, query);
-      prom.then(y => {
-        item.datapoints = y.data;
-      });
-      return prom;
-    });*/
-
-    /*
-
-
-
-
-
-
-    // closure id
-    (id => {
-      console.info('inside closure');
-      promise.then(x => {
-        var item = {
-          "target": id
-        };
-
-        var dp1 = (item => {
-          console.info('inside closure2');
-                    
-        var dp = this.getDataPoints(id, query);
-        dp.then(x => {
-          console.info('x - dp');
-          console.info(x);
-          item.datapoints = x.data;
-        });
-        return dp;
-
-      })(item);
-
-        x.data.push(item);
-        return dp1;
-      });
-    })(id);*/
-    /*  }
-  
-      console.info('returning promise');
-      return promise;*/
   }
 
   makeISOString(v) {
     if (v == null) { return null; }
 
-    console.info(v);
     var str = v.toISOString();
-    console.info(str);
     return str;
   }
 
 
   getDataPoints(id, query) {
 
-    console.info('getDataPoints');
 
     var first = this.makeISOString(query.range.from);
     var last = this.makeISOString(query.range.to);
 
-    console.info('query');
-    console.info(query);
+
 
     var opt = [];
     opt.push('streamid=' + id);
@@ -320,8 +193,7 @@ export class GenericDatasource {
 
     opt.push('limit=' + query.maxDataPoints);
 
-    console.info('options:');
-    console.info(opt);
+    
     var url = this.buildUrl('/observations', opt);
 
     var req = this.doRequest({
