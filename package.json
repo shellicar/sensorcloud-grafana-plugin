@@ -1,12 +1,13 @@
 {
-  "name": "grafana-simple-json",
+  "name": "data61-sensorcloud",
   "private": true,
   "version": "1.0.0",
-  "description": "",
+  "description": "sensor cloud grafana plugin",
   "main": "index.js",
   "scripts": {
     "build": "./node_modules/grunt-cli/bin/grunt",
-    "test": "./node_modules/grunt-cli/bin/grunt mochaTest"
+    "test": "./node_modules/grunt-cli/bin/grunt mochaTest",
+    "watch": "./node_modules/grunt-cli/bin/grunt watch"
   },
   "repository": {
     "type": "git",

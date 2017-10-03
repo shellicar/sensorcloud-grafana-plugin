@@ -1,2 +1,18 @@
-<datasource-http-settings current="ctrl.current">
-</datasource-http-settings>
+<datasource current="ctrl.current">
+</datasource>
+
+<div class="gf-form-group">
+    <h3 class="page-heading">Stream settings</h3>
+    <div class="gf-form-group">
+        <div class="gf-form-inline">
+            <div class="gf-form max-width-30">
+                <span class="gf-form-label width-7">Stream Match</span>
+                <input class="gf-form-input" type="text" ng-model='ctrl.current.jsonData.sensorid' min-length="0" ng-pattern="/^[a-zA-Z0-9-.]+$/"></input>
+            </div>
+            <div class="gf-form max-width-30">
+                <span class="gf-form-label width-7">API Key</span>
+                <input class="gf-form-input" type="text" ng-model='ctrl.current.jsonData.apikey' min-length="0" ng-pattern="/^[a-fA-f0-9]+$/" required></input>
+            </div>
+        </div>
+    </div>
+</div>
