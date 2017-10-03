@@ -43,8 +43,13 @@ System.register(['lodash'], function (_export, _context) {
           console.info('instanceSettings');
           console.info(instanceSettings);
 
-          this.sensorid = instanceSettings.jsonData['sensorid'];
-          this.apikey = instanceSettings.jsonData['apikey'];
+          if (instanceSettings.jsonData != null) {
+            this.sensorid = instanceSettings.jsonData['sensorid'];
+            this.apikey = instanceSettings.jsonData['apikey'];
+          } else {
+            this.sensorid = "";
+            this.apikey = "";
+          }
 
           this.type = instanceSettings.type;
           this.name = instanceSettings.name;
