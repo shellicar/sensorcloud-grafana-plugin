@@ -1,23 +1,21 @@
 import _ from "lodash";
+import { DataParser } from "./dataparse.js";
+import { UrlBuilder } from "./urlbuilder.js";
+import { RequestCache } from "./requestcache.js";
 
 export class GenericDatasource {
 
   constructor(instanceSettings, $q, backendSrv, templateSrv) {
-    console.info('current.json: ');
-    console.info(instanceSettings.jsonData);
-    console.info('instanceSettings');
-    console.info(instanceSettings);
 
-    if(instanceSettings.jsonData != null)
-    {
+    if (instanceSettings.jsonData != null) {
       this.sensorid = instanceSettings.jsonData['sensorid'];
       this.apikey = instanceSettings.jsonData['apikey'];
     }
-    else
-    {
+    else {
       this.sensorid = "";
       this.apikey = "";
     }
+    this.builder = new UrlBuilder(this.apikey, this.sensorid);
 
     this.type = instanceSettings.type;
     this.name = instanceSettings.name;
@@ -25,8 +23,6 @@ export class GenericDatasource {
     this.backendSrv = backendSrv;
     this.templateSrv = templateSrv;
     this.withCredentials = instanceSettings.withCredentials;
-    console.info('creds');
-    console.info(instanceSettings.withCredentials);
 
     console.info('basic auth');
     console.info(instanceSettings.basicAuth);
@@ -35,46 +31,17 @@ export class GenericDatasource {
     if (typeof instanceSettings.basicAuth === 'string' && instanceSettings.basicAuth.length > 0) {
       this.headers['Authorization'] = instanceSettings.basicAuth;
     }
+
+    this.requester = new RequestCache(this.backendSrv, this.withCredentials, this.headers);
+
   }
 
   buildUrl(str, arr) {
-    var baseUrl = "https://sensor-cloud.io/api/sensor/v2";
-    var url = baseUrl + str;
-
-
-
-    var opt = [];
-
-    if(this.apikey != "")
-      opt.push('apikey=' + this.apikey);
-
-    if (arr) {
-      for (var i = 0; i < arr.length; ++i)
-        opt.push(arr[i]);
-    }
-
-    if (opt.length > 0) {
-      var query = opt.join('&');
-      url += '?' + query
-    }
-
-    return url;
+    return this.builder.buildUrl(str, arr);
   }
 
-  buildQueryUrl(query) {
-
-    var arr = [];
-    
-
-    if(this.sensorid != null)
-    {
-      arr.push('id=' + this.sensorid);
-    }
-
-    arr.push('resulttype=scalarvalue');
-
-    var url = this.buildUrl("/streams", arr);
-    return url;
+  buildQueryUrl() {
+    return this.builder.buildQueryUrl();
   }
 
   query(options) {
@@ -88,57 +55,28 @@ export class GenericDatasource {
 
     // build URL
     var arr = [];
-    var url = this.buildQueryUrl(query);
+    var url = this.buildQueryUrl();
 
-    return this.doRequest({
-      url: url,
-      method: 'GET'
-    }).then(x => {
+
+    var key = { url: url, query: query };
+
+    var promise = this.requester.doRequest(url, key, x => {
       var pq = this.parseQuery(x, query);
       return pq;
-    }).then(x => {
-      return x;
     });
+
+    return promise;
   }
 
   parseData(data) {
-
-    var result = [];
-
-    var data2 = {};
-
-    for (var i = 0; i < data.results.length; ++i) {
-      var d = data.results[i];
-      var time = Object.keys(d)[0];
-      var timevalue = new Date(time).getTime();
-
-      for (var key in d[time]) {
-        var value = d[time][key].v;
-        if (value != null) {
-
-          if (!(key in data2))
-          {
-            data2[key] = [];
-          }
-
-          var val = [value, timevalue];
-          data2[key].push(val);
-        }
-      }
-    }
-
-    for (var key in data2) {
-      var item = {
-        "target": key,
-        "datapoints": data2[key]
-      };
-      result.push(item);
-    }
-    return result;
+    console.info("parseData");
+    var parser = new DataParser();
+    return parser.parseData(data);
   }
 
   parseQuery(str, query) {
 
+    console.info("parseQuery");
 
     var streams = str.data._embedded.streams;
 
@@ -157,23 +95,14 @@ export class GenericDatasource {
 
     var url = this.buildUrl('/observations', arr);
 
-    var req = this.doRequest({
-      url: url,
-      method: 'GET'
-    }).then(x => {
+    var key = { url: url, query: "extended" };
+
+    var promise = this.requester.doRequest(url, key, x => {
       x.data = this.parseData(x.data);
       return x;
     });
 
-    return req;
-
-
-
-
-
-
-
-    
+    return promise;
   }
 
   makeISOString(v) {
@@ -183,63 +112,30 @@ export class GenericDatasource {
     return str;
   }
 
+  parseTestResult(data) {
+    try {
+      var count = data.count;
+      if (count > 100)
+        throw Error('too many streams, plugin only supports up to 100');
+    }
+    catch (err) {
+      return { status: "error", message: err.message, title: "Error" };
+    }
 
-  getDataPoints(id, query) {
-
-
-    var first = this.makeISOString(query.range.from);
-    var last = this.makeISOString(query.range.to);
-
-
-
-    var opt = [];
-    opt.push('streamid=' + id);
-    if (first != null)
-      opt.push('first=' + first);
-    if (last != null)
-      opt.push('last=' + last);
-
-    opt.push('limit=' + query.maxDataPoints);
-
-    
-    var url = this.buildUrl('/observations', opt);
-
-    var req = this.doRequest({
-      url: url,
-      method: 'GET'
-    });
-
-    req.then(x => {
-      var results = x.data.results;
-
-      var retVal = [];
-
-      for (var i = 0; i < results.length; ++i) {
-        var val = results[i];
-        if (val.t != null && val.v != null && val.v.v != null) {
-          var td = new Date(val.t);
-          var t = td.getTime();
-          var v = val.v.v;
-          var idx = [v, t];
-          retVal.push(idx);
-        }
-      }
-
-      x.data = retVal;
-
-      return x;
-    });
-
-    return req;
+    return { status: "success", message: "Data source is working", title: "Success" };
   }
 
   testDatasource() {
+    var url = this.buildQueryUrl();
+
     return this.doRequest({
-      url: this.buildUrl('/'),
+      url: url,
       method: 'GET',
     }).then(response => {
       if (response.status === 200) {
-        return { status: "success", message: "Data source is working", title: "Success" };
+        console.info("Response = 200");
+
+        return this.parseTestResult(response.data);
       }
     });
   }

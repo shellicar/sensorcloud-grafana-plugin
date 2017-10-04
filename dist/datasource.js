@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
-System.register(['lodash'], function (_export, _context) {
+System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.js"], function (_export, _context) {
   "use strict";
 
-  var _, _createClass, GenericDatasource;
+  var _, DataParser, UrlBuilder, RequestCache, _createClass, GenericDatasource;
 
   function _classCallCheck(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
@@ -14,6 +14,12 @@ System.register(['lodash'], function (_export, _context) {
   return {
     setters: [function (_lodash) {
       _ = _lodash.default;
+    }, function (_dataparseJs) {
+      DataParser = _dataparseJs.DataParser;
+    }, function (_urlbuilderJs) {
+      UrlBuilder = _urlbuilderJs.UrlBuilder;
+    }, function (_requestcacheJs) {
+      RequestCache = _requestcacheJs.RequestCache;
     }],
     execute: function () {
       _createClass = function () {
@@ -34,14 +40,9 @@ System.register(['lodash'], function (_export, _context) {
         };
       }();
 
-      _export('GenericDatasource', GenericDatasource = function () {
+      _export("GenericDatasource", GenericDatasource = function () {
         function GenericDatasource(instanceSettings, $q, backendSrv, templateSrv) {
           _classCallCheck(this, GenericDatasource);
-
-          console.info('current.json: ');
-          console.info(instanceSettings.jsonData);
-          console.info('instanceSettings');
-          console.info(instanceSettings);
 
           if (instanceSettings.jsonData != null) {
             this.sensorid = instanceSettings.jsonData['sensorid'];
@@ -50,6 +51,7 @@ System.register(['lodash'], function (_export, _context) {
             this.sensorid = "";
             this.apikey = "";
           }
+          this.builder = new UrlBuilder(this.apikey, this.sensorid);
 
           this.type = instanceSettings.type;
           this.name = instanceSettings.name;
@@ -57,8 +59,6 @@ System.register(['lodash'], function (_export, _context) {
           this.backendSrv = backendSrv;
           this.templateSrv = templateSrv;
           this.withCredentials = instanceSettings.withCredentials;
-          console.info('creds');
-          console.info(instanceSettings.withCredentials);
 
           console.info('basic auth');
           console.info(instanceSettings.basicAuth);
@@ -67,48 +67,22 @@ System.register(['lodash'], function (_export, _context) {
           if (typeof instanceSettings.basicAuth === 'string' && instanceSettings.basicAuth.length > 0) {
             this.headers['Authorization'] = instanceSettings.basicAuth;
           }
+
+          this.requester = new RequestCache(this.backendSrv, this.withCredentials, this.headers);
         }
 
         _createClass(GenericDatasource, [{
-          key: 'buildUrl',
+          key: "buildUrl",
           value: function buildUrl(str, arr) {
-            var baseUrl = "https://sensor-cloud.io/api/sensor/v2";
-            var url = baseUrl + str;
-
-            var opt = [];
-
-            if (this.apikey != "") opt.push('apikey=' + this.apikey);
-
-            if (arr) {
-              for (var i = 0; i < arr.length; ++i) {
-                opt.push(arr[i]);
-              }
-            }
-
-            if (opt.length > 0) {
-              var query = opt.join('&');
-              url += '?' + query;
-            }
-
-            return url;
+            return this.builder.buildUrl(str, arr);
           }
         }, {
-          key: 'buildQueryUrl',
-          value: function buildQueryUrl(query) {
-
-            var arr = [];
-
-            if (this.sensorid != null) {
-              arr.push('id=' + this.sensorid);
-            }
-
-            arr.push('resulttype=scalarvalue');
-
-            var url = this.buildUrl("/streams", arr);
-            return url;
+          key: "buildQueryUrl",
+          value: function buildQueryUrl() {
+            return this.builder.buildQueryUrl();
           }
         }, {
-          key: 'query',
+          key: "query",
           value: function query(options) {
             var _this = this;
 
@@ -124,58 +98,30 @@ System.register(['lodash'], function (_export, _context) {
 
             // build URL
             var arr = [];
-            var url = this.buildQueryUrl(query);
+            var url = this.buildQueryUrl();
 
-            return this.doRequest({
-              url: url,
-              method: 'GET'
-            }).then(function (x) {
+            var key = { url: url, query: query };
+
+            var promise = this.requester.doRequest(url, key, function (x) {
               var pq = _this.parseQuery(x, query);
               return pq;
-            }).then(function (x) {
-              return x;
             });
+
+            return promise;
           }
         }, {
-          key: 'parseData',
+          key: "parseData",
           value: function parseData(data) {
-
-            var result = [];
-
-            var data2 = {};
-
-            for (var i = 0; i < data.results.length; ++i) {
-              var d = data.results[i];
-              var time = Object.keys(d)[0];
-              var timevalue = new Date(time).getTime();
-
-              for (var key in d[time]) {
-                var value = d[time][key].v;
-                if (value != null) {
-
-                  if (!(key in data2)) {
-                    data2[key] = [];
-                  }
-
-                  var val = [value, timevalue];
-                  data2[key].push(val);
-                }
-              }
-            }
-
-            for (var key in data2) {
-              var item = {
-                "target": key,
-                "datapoints": data2[key]
-              };
-              result.push(item);
-            }
-            return result;
+            console.info("parseData");
+            var parser = new DataParser();
+            return parser.parseData(data);
           }
         }, {
-          key: 'parseQuery',
+          key: "parseQuery",
           value: function parseQuery(str, query) {
             var _this2 = this;
+
+            console.info("parseQuery");
 
             var streams = str.data._embedded.streams;
 
@@ -194,18 +140,17 @@ System.register(['lodash'], function (_export, _context) {
 
             var url = this.buildUrl('/observations', arr);
 
-            var req = this.doRequest({
-              url: url,
-              method: 'GET'
-            }).then(function (x) {
+            var key = { url: url, query: "extended" };
+
+            var promise = this.requester.doRequest(url, key, function (x) {
               x.data = _this2.parseData(x.data);
               return x;
             });
 
-            return req;
+            return promise;
           }
         }, {
-          key: 'makeISOString',
+          key: "makeISOString",
           value: function makeISOString(v) {
             if (v == null) {
               return null;
@@ -215,63 +160,37 @@ System.register(['lodash'], function (_export, _context) {
             return str;
           }
         }, {
-          key: 'getDataPoints',
-          value: function getDataPoints(id, query) {
+          key: "parseTestResult",
+          value: function parseTestResult(data) {
+            try {
+              var count = data.count;
+              if (count > 100) throw Error('too many streams, plugin only supports up to 100');
+            } catch (err) {
+              return { status: "error", message: err.message, title: "Error" };
+            }
 
-            var first = this.makeISOString(query.range.from);
-            var last = this.makeISOString(query.range.to);
-
-            var opt = [];
-            opt.push('streamid=' + id);
-            if (first != null) opt.push('first=' + first);
-            if (last != null) opt.push('last=' + last);
-
-            opt.push('limit=' + query.maxDataPoints);
-
-            var url = this.buildUrl('/observations', opt);
-
-            var req = this.doRequest({
-              url: url,
-              method: 'GET'
-            });
-
-            req.then(function (x) {
-              var results = x.data.results;
-
-              var retVal = [];
-
-              for (var i = 0; i < results.length; ++i) {
-                var val = results[i];
-                if (val.t != null && val.v != null && val.v.v != null) {
-                  var td = new Date(val.t);
-                  var t = td.getTime();
-                  var v = val.v.v;
-                  var idx = [v, t];
-                  retVal.push(idx);
-                }
-              }
-
-              x.data = retVal;
-
-              return x;
-            });
-
-            return req;
+            return { status: "success", message: "Data source is working", title: "Success" };
           }
         }, {
-          key: 'testDatasource',
+          key: "testDatasource",
           value: function testDatasource() {
+            var _this3 = this;
+
+            var url = this.buildQueryUrl();
+
             return this.doRequest({
-              url: this.buildUrl('/'),
+              url: url,
               method: 'GET'
             }).then(function (response) {
               if (response.status === 200) {
-                return { status: "success", message: "Data source is working", title: "Success" };
+                console.info("Response = 200");
+
+                return _this3.parseTestResult(response.data);
               }
             });
           }
         }, {
-          key: 'annotationQuery',
+          key: "annotationQuery",
           value: function annotationQuery(options) {
             var query = this.templateSrv.replace(options.annotation.query, {}, 'glob');
             var annotationQuery = {
@@ -295,7 +214,7 @@ System.register(['lodash'], function (_export, _context) {
             });
           }
         }, {
-          key: 'metricFindQuery',
+          key: "metricFindQuery",
           value: function metricFindQuery(query) {
             var interpolated = {
               target: this.templateSrv.replace(query, null, 'regex')
@@ -310,7 +229,7 @@ System.register(['lodash'], function (_export, _context) {
             }).then(this.mapToTextValue);
           }
         }, {
-          key: 'mapToTextValue',
+          key: "mapToTextValue",
           value: function mapToTextValue(result) {
             return _.map(result.data, function (d, i) {
               if (d && d.text && d.value) {
@@ -322,7 +241,7 @@ System.register(['lodash'], function (_export, _context) {
             });
           }
         }, {
-          key: 'doRequest',
+          key: "doRequest",
           value: function doRequest(options) {
             options.withCredentials = this.withCredentials;
             options.headers = this.headers;
@@ -330,9 +249,9 @@ System.register(['lodash'], function (_export, _context) {
             return this.backendSrv.datasourceRequest(options);
           }
         }, {
-          key: 'buildQueryParameters',
+          key: "buildQueryParameters",
           value: function buildQueryParameters(options) {
-            var _this3 = this;
+            var _this4 = this;
 
             //remove placeholder targets
             options.targets = _.filter(options.targets, function (target) {
@@ -341,7 +260,7 @@ System.register(['lodash'], function (_export, _context) {
 
             var targets = _.map(options.targets, function (target) {
               return {
-                target: _this3.templateSrv.replace(target.target, options.scopedVars, 'regex'),
+                target: _this4.templateSrv.replace(target.target, options.scopedVars, 'regex'),
                 refId: target.refId,
                 hide: target.hide,
                 type: target.type || 'timeserie'
@@ -357,7 +276,7 @@ System.register(['lodash'], function (_export, _context) {
         return GenericDatasource;
       }());
 
-      _export('GenericDatasource', GenericDatasource);
+      _export("GenericDatasource", GenericDatasource);
     }
   };
 });
