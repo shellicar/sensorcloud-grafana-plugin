@@ -278,8 +278,8 @@ export class GenericDatasource {
   parseTestResult(data) {
     try {
       var count = data.count;
-      if (count > 100)
-        throw Error('too many streams, plugin only supports up to 100');
+      if (count > 1000)
+        throw Error('too many streams, plugin only supports up to 1000');
     }
     catch (err) {
       return { status: "error", message: err.message, title: "Error" };

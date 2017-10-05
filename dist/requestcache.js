@@ -72,7 +72,7 @@ System.register(["lodash"], function (_export, _context) {
                         for (var i = 0; i < this.cache.length; ++i) {
                             if (_.isEqual(this.cache[i].key, cachekey)) {
                                 console.info("returning cached item");
-                                //return this.cache[i].promise;
+                                return this.cache[i].promise;
                             }
                         }
 
