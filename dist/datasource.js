@@ -87,8 +87,6 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             var _this = this;
 
             var query = this.buildQueryParameters(options);
-            console.info('optionss');
-            console.info(options);
 
             query.targets = query.targets.filter(function (t) {
               return !t.hide;
@@ -142,26 +140,10 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
                 var id = obj[key].id;
                 var type = obj[key].resulttype;
 
-                //if(type == "scalarvalue")
-                {
-                  arr_reply.push(id);
-                } /*
-                  else if(type == "geolocationvalue")
-                  {
-                   arr_reply.push(id + "_lat");
-                   arr_reply.push(id + "_lon");
-                   arr_reply.push(id + "_alt");
-                  }*/
+                arr_reply.push(id);
               }
 
               return _this2.mapToTextValue({ data: arr_reply });
-
-              /*
-              var ret = obj.map(y => y.id);
-              console.info('x=');
-              console.info(x);
-              var result = this.mapToTextValue({ data: ret });
-              return result;*/
             };
 
             // get the promise
@@ -173,36 +155,6 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             });
 
             return myPromise.then(myHandler);
-
-            /*
-             promise.then(x => {
-              console.info('x=');
-              console.info(x);
-              var obj = x.data._embedded.streams;
-              var ret = obj.map(y => y.id);
-              console.info('ret=');
-              console.info(ret);
-              var result = this.mapToTextValue({ 'data': ret });
-              console.info('result');
-              console.info(result);
-              return result;
-            });*/
-
-            /*, x => {
-              var obj = x.data._embedded.streams;
-              var ret = obj.map(y => y.id);
-              return this.mapToTextValue({data: ret});
-            });*/
-
-            /*
-            return this.doRequest({
-              url: url,
-              method: 'GET',
-            }).then(x => {
-              var obj = x.data._embedded.streams;
-              var ret = obj.map(y => y.id);
-              return this.mapToTextValue({data: ret});
-            });*/
           }
         }, {
           key: "parseData",
@@ -217,8 +169,6 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
           key: "parseQuery",
           value: function parseQuery(str, query) {
             var _this3 = this;
-
-            console.info("parseQuery");
 
             var streams = str.data._embedded.streams;
 

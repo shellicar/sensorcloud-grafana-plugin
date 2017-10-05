@@ -94,18 +94,17 @@ export class GenericDatasource {
 
     var myHandler = x => {
       var obj = x.data._embedded.streams;
-      
+
       var arr_reply = [];
 
-      for(var key in obj)
-      {
+      for (var key in obj) {
         var id = obj[key].id;
         var type = obj[key].resulttype;
 
-         arr_reply.push(id);
+        arr_reply.push(id);
       }
 
-      return this.mapToTextValue({data: arr_reply});
+      return this.mapToTextValue({ data: arr_reply });
     };
 
     // get the promise
@@ -132,7 +131,6 @@ export class GenericDatasource {
   }
 
   parseQuery(str, query) {
-    console.info("parseQuery");
 
     var streams = str.data._embedded.streams;
 
