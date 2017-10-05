@@ -103,11 +103,13 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             // request key to differentiate requests with different returning data but with same URL
             var cacheKey = {
               url: url,
-              query: [this.makeISOString(query.range.from), this.makeISOString(query.range.to), query.maxDataPoints]
+              query: [this.makeISOString(query.range.from), this.makeISOString(query.range.to), query.maxDataPoints, query.targets]
             };
 
             var promise = this.requester.doRequest(url, cacheKey, function (x) {
-              var pq = _this.parseQuery(x, query);
+
+              //var pq = this.parseQuery(x, query);
+              var pq = _this.parseQueryAgg(x, query);
               return pq;
             });
 
@@ -157,6 +159,15 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             return myPromise.then(myHandler);
           }
         }, {
+          key: "parseAggData",
+          value: function parseAggData(data) {
+            console.info("parseAggData");
+            console.info(data);
+
+            var parser = new DataParser();
+            return parser.parseAggData(data);
+          }
+        }, {
           key: "parseData",
           value: function parseData(data, multiple) {
             console.info("parseData");
@@ -166,15 +177,14 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             return parser.parseDataSingle(data);
           }
         }, {
-          key: "parseQuery",
-          value: function parseQuery(str, query) {
-            var _this3 = this;
+          key: "parseQueryExt",
+          value: function parseQueryExt(streams, query, api_call, parse_func, extra_arr) {
+            //var streams = str.data._embedded.streams;
 
-            var streams = str.data._embedded.streams;
+            console.error("streams");
+            console.error(streams);
 
-            var streamid = streams.map(function (x) {
-              return x.id;
-            }).join(",");
+            var streamid = streams.join(",");
 
             var arr = [];
             arr.push('streamid=' + streamid);
@@ -184,18 +194,116 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             arr.push('sort=descending');
             arr.push('media=json');
 
-            var url = this.buildUrl('/observations', arr);
+            if (extra_arr != null) arr.push(extra_arr);
+
+            var url = this.buildUrl(api_call, arr);
 
             var cacheKey = { url: url, query: "extended" };
 
             var multiple = streams.length > 1;
 
-            var promise = this.requester.doRequest(url, cacheKey, function (x) {
-              x.data = _this3.parseData(x.data, multiple);
-              return x;
-            });
+            var promise = this.requester.doRequest(url, cacheKey, parse_func); /*x => {
+                                                                               x.data = this.parseData(x.data, multiple);
+                                                                               return x;
+                                                                               });*/
 
             return promise;
+          }
+        }, {
+          key: "doAllPromises",
+          value: async function doAllPromises(promises) {
+
+            console.info("doAllPromises: " + promises.length);
+            var data = [];
+
+            for (var i = 0; i < promises.length; ++i) {
+              var promise = promises[i];
+              console.info("awaiting - " + i);
+              var result = await promise;
+              console.info("awaited");
+
+              for (var j = 0; j < result.data.length; ++j) {
+                data.push(result.data[j]);
+              }
+            }
+
+            console.info("data=");
+            console.info(data);
+
+            return { data: data };
+          }
+        }, {
+          key: "parseQueryAgg",
+          value: function parseQueryAgg(str, query) {
+            var _this3 = this;
+
+            var streams = str.data._embedded.streams;
+            streams = streams.map(function (x) {
+              return x.id;
+            });
+            console.info("parseQueryAgg");
+            console.info(streams);
+
+            var promises = [];
+
+            for (var i = 0; i < streams.length; ++i) {
+              var str = streams[i];
+              console.error("str=" + str);
+              var multiple = streams.length > 1;
+
+              var arr = ["aggperiod=" + query.intervalMs];
+              var promise = this.parseQueryExt([str], query, '/aggregation', function (x) {
+                var newData = _this3.parseAggData(x.data);
+                x.data = newData;
+                return x;
+              }, arr);
+              promises.push(promise);
+            }
+
+            return this.doAllPromises(promises);
+
+            var thePromise = new Promise(function (resolve, reject) {
+              resolve(promises);
+            });
+
+            thePromise.then(function (x) {
+
+              var result = [];
+              for (var i = 0; i < x.length; ++i) {
+                if (x[i].status != 200) throw 'error';
+
+                for (var j = 0; j < x[i].data.length; ++j) {
+                  result.push(x[i].data[j]);
+                }
+              }
+              console.info("final promise");
+              console.info(result);
+
+              var ret = { data: result };
+              console.info("FINAL: ");
+              console.info(ret);
+              return ret;
+            });
+            return thePromise;
+          }
+        }, {
+          key: "parseQuery",
+          value: function parseQuery(str, query) {
+            var _this4 = this;
+
+            var streams = str.data._embedded.streams;
+            console.error("streams");
+            console.error(streams);;
+            streams = streams.map(function (x) {
+              return x.id;
+            });
+            console.error(streams);
+
+            var multiple = streams.length > 1;
+            return this.parseQueryExt(streams, query, '/observations', function (x) {
+              x.data = _this4.parseData(x.data, multiple);
+              return x;
+            });
           }
         }, {
           key: "makeISOString",
@@ -222,7 +330,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
         }, {
           key: "testDatasource",
           value: function testDatasource() {
-            var _this4 = this;
+            var _this5 = this;
 
             var url = this.buildQueryUrl();
 
@@ -233,7 +341,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
               if (response.status === 200) {
                 console.info("Response = 200");
 
-                return _this4.parseTestResult(response.data);
+                return _this5.parseTestResult(response.data);
               }
             });
           }
@@ -289,7 +397,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
         }, {
           key: "buildQueryParameters",
           value: function buildQueryParameters(options) {
-            var _this5 = this;
+            var _this6 = this;
 
             //remove placeholder targets
             options.targets = _.filter(options.targets, function (target) {
@@ -298,7 +406,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
 
             var targets = _.map(options.targets, function (target) {
               return {
-                target: _this5.templateSrv.replace(target.target, options.scopedVars, 'regex'),
+                target: _this6.templateSrv.replace(target.target, options.scopedVars, 'regex'),
                 refId: target.refId,
                 hide: target.hide,
                 type: target.type || 'timeserie'

@@ -64,12 +64,15 @@ export class GenericDatasource {
       [
         this.makeISOString(query.range.from),
         this.makeISOString(query.range.to),
-        query.maxDataPoints
+        query.maxDataPoints,
+        query.targets
       ]
     };
 
     var promise = this.requester.doRequest(url, cacheKey, x => {
-      var pq = this.parseQuery(x, query);
+
+      //var pq = this.parseQuery(x, query);
+      var pq = this.parseQueryAgg(x, query);
       return pq;
     });
 
@@ -120,6 +123,13 @@ export class GenericDatasource {
   }
 
 
+  parseAggData(data) {
+    console.info("parseAggData");
+    console.info(data);
+
+    var parser = new DataParser();
+    return parser.parseAggData(data);
+  }
 
   parseData(data, multiple) {
     console.info("parseData");
@@ -130,11 +140,13 @@ export class GenericDatasource {
     return parser.parseDataSingle(data);
   }
 
-  parseQuery(str, query) {
+  parseQueryExt(streams, query, api_call, parse_func, extra_arr) {
+    //var streams = str.data._embedded.streams;
 
-    var streams = str.data._embedded.streams;
+    console.error("streams");
+    console.error(streams);
 
-    var streamid = streams.map(x => x.id).join(",");
+    var streamid = streams.join(",");
 
     var arr = [];
     arr.push('streamid=' + streamid);
@@ -144,18 +156,116 @@ export class GenericDatasource {
     arr.push('sort=descending');
     arr.push('media=json');
 
-    var url = this.buildUrl('/observations', arr);
+    if (extra_arr != null)
+      arr.push(extra_arr);
+
+    var url = this.buildUrl(api_call, arr);
 
     var cacheKey = { url: url, query: "extended" };
 
     var multiple = streams.length > 1;
 
-    var promise = this.requester.doRequest(url, cacheKey, x => {
+    var promise = this.requester.doRequest(url, cacheKey, parse_func);/*x => {
+      x.data = this.parseData(x.data, multiple);
+      return x;
+    });*/
+
+    return promise;
+  }
+
+
+  async doAllPromises(promises) {
+
+    console.info("doAllPromises: " + promises.length);
+    var data = [];
+
+    for (var i = 0; i < promises.length; ++i) {
+      var promise = promises[i];
+      console.info("awaiting - " + i);
+      var result = await promise;
+      console.info("awaited")
+      
+
+      for(var j=0; j<result.data.length; ++j)
+      {
+        data.push(result.data[j]);
+      }
+    }
+
+    console.info("data=");
+    console.info(data);
+
+    return {data: data};
+  }
+
+
+  parseQueryAgg(str, query) {
+    var streams = str.data._embedded.streams;
+    streams = streams.map(x => x.id)
+    console.info("parseQueryAgg");
+    console.info(streams);
+
+    var promises = [];
+
+    for (var i = 0; i < streams.length; ++i) {
+      var str = streams[i];
+      console.error("str=" + str);
+      var multiple = streams.length > 1;
+
+      var arr = ["aggperiod=" + query.intervalMs];
+      var promise = this.parseQueryExt([str], query, '/aggregation', x => {
+        var newData = this.parseAggData(x.data);
+        x.data = newData;
+        return x;
+      }, arr);
+      promises.push(promise);
+    }
+
+
+    return this.doAllPromises(promises);
+
+
+    var thePromise = new Promise((resolve, reject) => {
+      resolve(promises);
+    });
+
+    thePromise.then(x => {
+
+
+
+
+
+      var result = [];
+      for (var i = 0; i < x.length; ++i) {
+        if (x[i].status != 200)
+          throw 'error';
+
+        for (var j = 0; j < x[i].data.length; ++j)
+          result.push(x[i].data[j]);
+      }
+      console.info("final promise");
+      console.info(result);
+
+      var ret = { data: result };
+      console.info("FINAL: ");
+      console.info(ret);
+      return ret;
+    });
+    return thePromise;
+  }
+
+  parseQuery(str, query) {
+    var streams = str.data._embedded.streams;
+    console.error("streams");
+    console.error(streams);;
+    streams = streams.map(x => x.id);
+    console.error(streams);
+
+    var multiple = streams.length > 1;
+    return this.parseQueryExt(streams, query, '/observations', x => {
       x.data = this.parseData(x.data, multiple);
       return x;
     });
-
-    return promise;
   }
 
   makeISOString(v) {

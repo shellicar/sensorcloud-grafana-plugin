@@ -11,12 +11,66 @@ export class DataParser {
         throw new Error('nyi');
     }
 
+    parseAggData(data) {
+
+        console.info("parseAggData");
+        var target = data._embedded.stream._links.id;
+
+        var result = {};
+
+        var addValue = (name, time, value) => {
+
+            if (value != null) {
+                if (typeof value == "number") {
+                    var key = target + "." + name;
+                    if (!(key in result))
+                        result[key] = [];
+                    var val = [value, time];
+                    result[key].push(val);
+                }
+                else if ('coordinates' in value) {
+
+                    var x = value.coordinates[0];
+                    var y = value.coordinates[1];
+                    addValue("x." + name, time, x);
+                    addValue("y." + name, time, y);
+                }
+            }
+        }
+
+        data.results.forEach(d => {
+            var time = new Date(d.t).getTime();
+            var value = d.v;
+
+            var avg = value.avg;
+            var min = value.min;
+            var max = value.max;
+            var med = value.median;
+
+            if (med != null)
+                addValue("median", time, med);
+            if (avg != null)
+                addValue("avg", time, avg);
+            if (min != null)
+                addValue("min", time, min);
+            if (max != null)
+                addValue("max", time, max);
+
+        })
+
+
+        var ret = _.map(result, (value, key, collection) => {
+            return {
+                "target": key,
+                "datapoints": value
+            }
+        });
+
+        return ret;
+    }
+
     parseDataSingle(data) {
         console.info("DataParser.parseDataSingle");
-
-        /* var parseobj = obj => {
-             return [obj.v.v, new Date(obj.t).getTime()];
-         }*/
 
         var target = data._embedded.stream._links.self.id;
 
