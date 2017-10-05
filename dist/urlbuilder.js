@@ -42,15 +42,33 @@ System.register([], function (_export, _context) {
 
                 _createClass(UrlBuilder, [{
                     key: 'buildQueryUrl',
-                    value: function buildQueryUrl() {
+                    value: function buildQueryUrl(targets) {
                         var arr = [];
-                        if (this.sensorid) {
-                            arr.push('id=' + this.sensorid);
+
+                        var streamid = null;
+                        if (targets) {
+                            streamid = targets.map(function (x) {
+                                return x.target;
+                            }).join(",");
                         }
+
+                        console.info('streamid');
+                        console.info(streamid);
+
+                        if (!streamid) streamid = this.sensorid;
+
+                        console.info('streamid=' + streamid);
+                        arr.push('id=' + streamid);
+
+                        arr.push('properties=resulttype');
+
                         // only request scalars
-                        arr.push('resulttype=scalarvalue');
+                        //arr.push('resulttype=scalarvalue');
+
                         // api url
                         var url = this.buildUrl("/streams", arr);
+
+                        console.info("URL=" + url);
                         return url;
                     }
                 }, {

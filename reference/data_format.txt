@@ -1,0 +1,137 @@
+Expected values
+
+[
+    {
+        "target": "tdfnode.0.9876b6fffe106a4e-1.GPS.geolocation",
+        "datapoints": [
+            [
+                [
+                    147.3220716,
+                    -42.9062183,
+                    8590
+                ],
+                1506995676000
+            ],
+            [
+                [
+                    147.32207,
+                    -42.906214999999996,
+                    8590
+                ],
+                1506995670000
+            ],
+            [
+                [
+                    147.3220633,
+                    -42.9062166,
+                    8590
+                ],
+                1506995664000
+            ],
+            [
+                [
+                    147.32205829999998,
+                    -42.9062166,
+                    8590
+                ],
+                1506995658000
+            ]
+        ]
+    },
+    {
+        "target": "tdfnode.0.9876b6fffe106a4e-1.LORA_GATEWAY.rssi",
+        "datapoints": [
+            [
+                -117,
+                1506995676000
+            ],
+            [
+                -73,
+                1506995670000
+            ],
+            [
+                -115,
+                1506995664000
+            ],
+            [
+                -121,
+                1506995658000
+            ]
+        ]
+    }
+]
+
+
+
+
+Currently returned values
+[
+    {
+        "2017-10-03T01:54:36.000Z": {
+            "tdfnode.0.9876b6fffe106a4e-1.GPS.geolocation": {
+                "p": {
+                    "type": "Point",
+                    "coordinates": [
+                        147.3220716,
+                        -42.9062183,
+                        8590
+                    ]
+                }
+            },
+            "tdfnode.0.9876b6fffe106a4e-1.LORA_GATEWAY.rssi": {
+                "v": -117
+            }
+        }
+    },
+    {
+        "2017-10-03T01:54:30.000Z": {
+            "tdfnode.0.9876b6fffe106a4e-1.GPS.geolocation": {
+                "p": {
+                    "type": "Point",
+                    "coordinates": [
+                        147.32207,
+                        -42.906214999999996,
+                        8590
+                    ]
+                }
+            },
+            "tdfnode.0.9876b6fffe106a4e-1.LORA_GATEWAY.rssi": {
+                "v": -73
+            }
+        }
+    },
+    {
+        "2017-10-03T01:54:24.000Z": {
+            "tdfnode.0.9876b6fffe106a4e-1.GPS.geolocation": {
+                "p": {
+                    "type": "Point",
+                    "coordinates": [
+                        147.3220633,
+                        -42.9062166,
+                        8590
+                    ]
+                }
+            },
+            "tdfnode.0.9876b6fffe106a4e-1.LORA_GATEWAY.rssi": {
+                "v": -115
+            }
+        }
+    },
+    {
+        "2017-10-03T01:54:18.000Z": {
+            "tdfnode.0.9876b6fffe106a4e-1.GPS.geolocation": {
+                "p": {
+                    "type": "Point",
+                    "coordinates": [
+                        147.32205829999998,
+                        -42.9062166,
+                        8590
+                    ]
+                }
+            },
+            "tdfnode.0.9876b6fffe106a4e-1.LORA_GATEWAY.rssi": {
+                "v": -121
+            }
+        }
+    }
+]

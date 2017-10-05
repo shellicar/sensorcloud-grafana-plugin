@@ -45,8 +45,8 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
           _classCallCheck(this, GenericDatasource);
 
           if (instanceSettings.jsonData != null) {
-            this.sensorid = instanceSettings.jsonData['sensorid'];
-            this.apikey = instanceSettings.jsonData['apikey'];
+            this.sensorid = instanceSettings.jsonData['sensorid'] || "";
+            this.apikey = instanceSettings.jsonData['apikey'] || "";
           } else {
             this.sensorid = "";
             this.apikey = "";
@@ -60,8 +60,8 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
           this.templateSrv = templateSrv;
           this.withCredentials = instanceSettings.withCredentials;
 
-          console.info('basic auth');
-          console.info(instanceSettings.basicAuth);
+          console.debug('basic auth');
+          console.debug(instanceSettings.basicAuth);
 
           this.headers = { 'Content-Type': 'application/json' };
           if (typeof instanceSettings.basicAuth === 'string' && instanceSettings.basicAuth.length > 0) {
@@ -78,8 +78,8 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
           }
         }, {
           key: "buildQueryUrl",
-          value: function buildQueryUrl() {
-            return this.builder.buildQueryUrl();
+          value: function buildQueryUrl(targets) {
+            return this.builder.buildQueryUrl(targets);
           }
         }, {
           key: "query",
@@ -87,6 +87,8 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             var _this = this;
 
             var query = this.buildQueryParameters(options);
+            console.info('optionss');
+            console.info(options);
 
             query.targets = query.targets.filter(function (t) {
               return !t.hide;
@@ -98,11 +100,15 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
 
             // build URL
             var arr = [];
-            var url = this.buildQueryUrl();
+            var url = this.buildQueryUrl(query.targets);
 
-            var key = { url: url, query: query };
+            // request key to differentiate requests with different returning data but with same URL
+            var cacheKey = {
+              url: url,
+              query: [this.makeISOString(query.range.from), this.makeISOString(query.range.to), query.maxDataPoints]
+            };
 
-            var promise = this.requester.doRequest(url, key, function (x) {
+            var promise = this.requester.doRequest(url, cacheKey, function (x) {
               var pq = _this.parseQuery(x, query);
               return pq;
             });
@@ -110,26 +116,115 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             return promise;
           }
         }, {
+          key: "metricFindQuery",
+          value: function metricFindQuery(query) {
+            var _this2 = this;
+
+            console.info('metricFindQuery');
+
+            var interpolated = {
+              target: this.templateSrv.replace(query, null, 'regex')
+            };
+
+            var url = this.buildQueryUrl();
+
+            var cacheKey = {
+              url: url,
+              query: "findMetrics"
+            };
+
+            var myHandler = function myHandler(x) {
+              var obj = x.data._embedded.streams;
+
+              var arr_reply = [];
+
+              for (var key in obj) {
+                var id = obj[key].id;
+                var type = obj[key].resulttype;
+
+                //if(type == "scalarvalue")
+                {
+                  arr_reply.push(id);
+                } /*
+                  else if(type == "geolocationvalue")
+                  {
+                   arr_reply.push(id + "_lat");
+                   arr_reply.push(id + "_lon");
+                   arr_reply.push(id + "_alt");
+                  }*/
+              }
+
+              return _this2.mapToTextValue({ data: arr_reply });
+
+              /*
+              var ret = obj.map(y => y.id);
+              console.info('x=');
+              console.info(x);
+              var result = this.mapToTextValue({ data: ret });
+              return result;*/
+            };
+
+            // get the promise
+            var promise = this.requester.doRequest(url, cacheKey);
+
+            // wrap around another promise
+            var myPromise = new Promise(function (resolve, reject) {
+              resolve(promise);
+            });
+
+            return myPromise.then(myHandler);
+
+            /*
+             promise.then(x => {
+              console.info('x=');
+              console.info(x);
+              var obj = x.data._embedded.streams;
+              var ret = obj.map(y => y.id);
+              console.info('ret=');
+              console.info(ret);
+              var result = this.mapToTextValue({ 'data': ret });
+              console.info('result');
+              console.info(result);
+              return result;
+            });*/
+
+            /*, x => {
+              var obj = x.data._embedded.streams;
+              var ret = obj.map(y => y.id);
+              return this.mapToTextValue({data: ret});
+            });*/
+
+            /*
+            return this.doRequest({
+              url: url,
+              method: 'GET',
+            }).then(x => {
+              var obj = x.data._embedded.streams;
+              var ret = obj.map(y => y.id);
+              return this.mapToTextValue({data: ret});
+            });*/
+          }
+        }, {
           key: "parseData",
-          value: function parseData(data) {
+          value: function parseData(data, multiple) {
             console.info("parseData");
             var parser = new DataParser();
-            return parser.parseData(data);
+
+            if (multiple) return parser.parseData(data);
+            return parser.parseDataSingle(data);
           }
         }, {
           key: "parseQuery",
           value: function parseQuery(str, query) {
-            var _this2 = this;
+            var _this3 = this;
 
             console.info("parseQuery");
 
             var streams = str.data._embedded.streams;
 
-            var strnames = [];
-            for (var i = 0; i < streams.length; ++i) {
-              strnames.push(streams[i].id);
-            }
-            var streamid = strnames.reverse().join(",");
+            var streamid = streams.map(function (x) {
+              return x.id;
+            }).join(",");
 
             var arr = [];
             arr.push('streamid=' + streamid);
@@ -137,13 +232,16 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             arr.push('end=' + this.makeISOString(query.range.to));
             arr.push('limit=' + query.maxDataPoints);
             arr.push('sort=descending');
+            arr.push('media=json');
 
             var url = this.buildUrl('/observations', arr);
 
-            var key = { url: url, query: "extended" };
+            var cacheKey = { url: url, query: "extended" };
 
-            var promise = this.requester.doRequest(url, key, function (x) {
-              x.data = _this2.parseData(x.data);
+            var multiple = streams.length > 1;
+
+            var promise = this.requester.doRequest(url, cacheKey, function (x) {
+              x.data = _this3.parseData(x.data, multiple);
               return x;
             });
 
@@ -174,7 +272,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
         }, {
           key: "testDatasource",
           value: function testDatasource() {
-            var _this3 = this;
+            var _this4 = this;
 
             var url = this.buildQueryUrl();
 
@@ -185,7 +283,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
               if (response.status === 200) {
                 console.info("Response = 200");
 
-                return _this3.parseTestResult(response.data);
+                return _this4.parseTestResult(response.data);
               }
             });
           }
@@ -214,21 +312,6 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             });
           }
         }, {
-          key: "metricFindQuery",
-          value: function metricFindQuery(query) {
-            var interpolated = {
-              target: this.templateSrv.replace(query, null, 'regex')
-            };
-
-            console.info('metricFind');
-            console.info(interpolated);
-
-            return this.doRequest({
-              url: this.buildUrl('/search_not_implemented_yet'),
-              method: 'GET'
-            }).then(this.mapToTextValue);
-          }
-        }, {
           key: "mapToTextValue",
           value: function mapToTextValue(result) {
             return _.map(result.data, function (d, i) {
@@ -246,12 +329,17 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             options.withCredentials = this.withCredentials;
             options.headers = this.headers;
 
-            return this.backendSrv.datasourceRequest(options);
+            var promise = this.backendSrv.datasourceRequest(options);
+            promise.then(function (x) {
+              console.info("performing HTTP request");
+              return x;
+            });
+            return promise;
           }
         }, {
           key: "buildQueryParameters",
           value: function buildQueryParameters(options) {
-            var _this4 = this;
+            var _this5 = this;
 
             //remove placeholder targets
             options.targets = _.filter(options.targets, function (target) {
@@ -260,7 +348,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
 
             var targets = _.map(options.targets, function (target) {
               return {
-                target: _this4.templateSrv.replace(target.target, options.scopedVars, 'regex'),
+                target: _this5.templateSrv.replace(target.target, options.scopedVars, 'regex'),
                 refId: target.refId,
                 hide: target.hide,
                 type: target.type || 'timeserie'

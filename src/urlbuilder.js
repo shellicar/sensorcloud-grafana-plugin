@@ -7,15 +7,32 @@ export class UrlBuilder {
         this.sensorid = sensorid;
     }
 
-    buildQueryUrl() {
+    buildQueryUrl(targets) {
         var arr = [];
-        if (this.sensorid) {
-            arr.push('id=' + this.sensorid);
+
+        var streamid = null;
+        if (targets) {
+            streamid = targets.map(x => x.target).join(",");
         }
+
+        console.info('streamid');
+        console.info(streamid);
+
+        if (!streamid)
+            streamid = this.sensorid;
+
+        console.info('streamid=' + streamid);
+        arr.push('id=' + streamid);
+
+        arr.push('properties=resulttype');
+
         // only request scalars
-        arr.push('resulttype=scalarvalue');
+        //arr.push('resulttype=scalarvalue');
+
         // api url
         var url = this.buildUrl("/streams", arr);
+
+        console.info("URL=" + url);
         return url;
     }
 

@@ -25,13 +25,14 @@ export class RequestCache {
         const CacheAge = 30000;
 
         while (this.cache.length > 0 && Date.now() - this.cache[0].time > CacheAge) {
-            console.info("expiring cached item");
+            console.debug("expiring cached item");
+            // remove first item
             this.cache.shift();
         }
 
-
         for (var i = 0; i < this.cache.length; ++i) {
             if (_.isEqual(this.cache[i].key, cachekey)) {
+                console.info("returning cached item");
                 return this.cache[i].promise;
             }
         }

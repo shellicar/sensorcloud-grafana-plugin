@@ -8,8 +8,8 @@ export class GenericDatasource {
   constructor(instanceSettings, $q, backendSrv, templateSrv) {
 
     if (instanceSettings.jsonData != null) {
-      this.sensorid = instanceSettings.jsonData['sensorid'];
-      this.apikey = instanceSettings.jsonData['apikey'];
+      this.sensorid = instanceSettings.jsonData['sensorid'] || "";
+      this.apikey = instanceSettings.jsonData['apikey'] || "";
     }
     else {
       this.sensorid = "";
@@ -24,8 +24,8 @@ export class GenericDatasource {
     this.templateSrv = templateSrv;
     this.withCredentials = instanceSettings.withCredentials;
 
-    console.info('basic auth');
-    console.info(instanceSettings.basicAuth);
+    console.debug('basic auth');
+    console.debug(instanceSettings.basicAuth);
 
     this.headers = { 'Content-Type': 'application/json' };
     if (typeof instanceSettings.basicAuth === 'string' && instanceSettings.basicAuth.length > 0) {
@@ -40,8 +40,8 @@ export class GenericDatasource {
     return this.builder.buildUrl(str, arr);
   }
 
-  buildQueryUrl() {
-    return this.builder.buildQueryUrl();
+  buildQueryUrl(targets) {
+    return this.builder.buildQueryUrl(targets);
   }
 
   query(options) {
@@ -55,12 +55,20 @@ export class GenericDatasource {
 
     // build URL
     var arr = [];
-    var url = this.buildQueryUrl();
+    var url = this.buildQueryUrl(query.targets);
 
+    // request key to differentiate requests with different returning data but with same URL
+    var cacheKey = {
+      url: url,
+      query:
+      [
+        this.makeISOString(query.range.from),
+        this.makeISOString(query.range.to),
+        query.maxDataPoints
+      ]
+    };
 
-    var key = { url: url, query: query };
-
-    var promise = this.requester.doRequest(url, key, x => {
+    var promise = this.requester.doRequest(url, cacheKey, x => {
       var pq = this.parseQuery(x, query);
       return pq;
     });
@@ -68,23 +76,67 @@ export class GenericDatasource {
     return promise;
   }
 
-  parseData(data) {
+
+  metricFindQuery(query) {
+    console.info('metricFindQuery');
+
+    var interpolated = {
+      target: this.templateSrv.replace(query, null, 'regex')
+    };
+
+    var url = this.buildQueryUrl();
+
+    var cacheKey = {
+      url: url,
+      query: "findMetrics"
+    };
+
+
+    var myHandler = x => {
+      var obj = x.data._embedded.streams;
+      
+      var arr_reply = [];
+
+      for(var key in obj)
+      {
+        var id = obj[key].id;
+        var type = obj[key].resulttype;
+
+         arr_reply.push(id);
+      }
+
+      return this.mapToTextValue({data: arr_reply});
+    };
+
+    // get the promise
+    var promise = this.requester.doRequest(url, cacheKey);
+
+    // wrap around another promise
+    var myPromise = new Promise((resolve, reject) => {
+      resolve(promise);
+    });
+
+    return myPromise.then(myHandler);
+
+  }
+
+
+
+  parseData(data, multiple) {
     console.info("parseData");
     var parser = new DataParser();
-    return parser.parseData(data);
+
+    if (multiple)
+      return parser.parseData(data);
+    return parser.parseDataSingle(data);
   }
 
   parseQuery(str, query) {
-
     console.info("parseQuery");
 
     var streams = str.data._embedded.streams;
 
-    var strnames = [];
-    for (var i = 0; i < streams.length; ++i) {
-      strnames.push(streams[i].id);
-    }
-    var streamid = strnames.reverse().join(",");
+    var streamid = streams.map(x => x.id).join(",");
 
     var arr = [];
     arr.push('streamid=' + streamid);
@@ -92,13 +144,16 @@ export class GenericDatasource {
     arr.push('end=' + this.makeISOString(query.range.to));
     arr.push('limit=' + query.maxDataPoints);
     arr.push('sort=descending');
+    arr.push('media=json');
 
     var url = this.buildUrl('/observations', arr);
 
-    var key = { url: url, query: "extended" };
+    var cacheKey = { url: url, query: "extended" };
 
-    var promise = this.requester.doRequest(url, key, x => {
-      x.data = this.parseData(x.data);
+    var multiple = streams.length > 1;
+
+    var promise = this.requester.doRequest(url, cacheKey, x => {
+      x.data = this.parseData(x.data, multiple);
       return x;
     });
 
@@ -163,19 +218,7 @@ export class GenericDatasource {
     });
   }
 
-  metricFindQuery(query) {
-    var interpolated = {
-      target: this.templateSrv.replace(query, null, 'regex')
-    };
 
-    console.info('metricFind');
-    console.info(interpolated);
-
-    return this.doRequest({
-      url: this.buildUrl('/search_not_implemented_yet'),
-      method: 'GET',
-    }).then(this.mapToTextValue);
-  }
 
   mapToTextValue(result) {
     return _.map(result.data, (d, i) => {
@@ -192,7 +235,12 @@ export class GenericDatasource {
     options.withCredentials = this.withCredentials;
     options.headers = this.headers;
 
-    return this.backendSrv.datasourceRequest(options);
+    var promise = this.backendSrv.datasourceRequest(options);
+    promise.then(x => {
+      console.info("performing HTTP request");
+      return x;
+    })
+    return promise;
   }
 
   buildQueryParameters(options) {
