@@ -15,8 +15,13 @@ export class GenericDatasource {
       this.sensorid = "";
       this.apikey = "";
     }
+    console.info("sensorid: " + this.sensorid);
+    console.info(instanceSettings);
 
-    this.builder = new UrlBuilder(instanceSettings.url, this.apikey, this.sensorid);
+    var baseUrl = this.getBaseUrl(instanceSettings.jsonData.source, instanceSettings.url);
+    console.info("url: " + baseUrl);
+
+    this.builder = new UrlBuilder(baseUrl, this.apikey, this.sensorid);
 
     this.type = instanceSettings.type;
     this.name = instanceSettings.name;
@@ -35,6 +40,19 @@ export class GenericDatasource {
 
     this.requester = new RequestCache(this.backendSrv, this.withCredentials, this.headers);
 
+  }
+
+  getBaseUrl(source, customUrl) {
+    console.info("getBaseUrl: " + source);
+    switch (source) {
+      case "production":
+        return "https://sensor-cloud.io/api/sensor/v2";
+      case "development":
+        return "https://52.64.57.4/api/sensor/v2";
+        case "custom":
+        return customUrl;
+    }
+    return null;
   }
 
   buildUrl(str, arr) {
@@ -184,10 +202,9 @@ export class GenericDatasource {
       console.info("awaiting - " + i);
       var result = await promise;
       console.info("awaited")
-      
 
-      for(var j=0; j<result.data.length; ++j)
-      {
+
+      for (var j = 0; j < result.data.length; ++j) {
         data.push(result.data[j]);
       }
     }
@@ -195,7 +212,7 @@ export class GenericDatasource {
     console.info("data=");
     console.info(data);
 
-    return {data: data};
+    return { data: data };
   }
 
 
@@ -272,16 +289,19 @@ export class GenericDatasource {
   }
 
   parseTestResult(data) {
+    console.info('parseTestResult');
     try {
       var count = data.count;
+      console.info("count=" + count);
       if (count > 1000)
-        throw Error('too many streams, plugin only supports up to 1000');
+        throw Error('too many streams (' + count + '), plugin only supports up to 1000');
+      return { status: "success", message: "Data source is working, " + count + " streams found", title: "Success" };
     }
     catch (err) {
       return { status: "error", message: err.message, title: "Error" };
     }
 
-    return { status: "success", message: "Data source is working", title: "Success" };
+
   }
 
   testDatasource() {

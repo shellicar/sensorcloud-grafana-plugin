@@ -58,9 +58,12 @@ System.register([], function (_export, _context) {
 
                         if (!streamid) streamid = this.sensorid;
 
-                        console.info('streamid=' + streamid);
-                        arr.push('id=' + streamid);
+                        if (streamid) {
+                            console.info('streamid=' + streamid);
+                            arr.push('id=' + streamid);
+                        }
 
+                        arr.push('limit=10000');
                         arr.push('properties=resulttype');
 
                         // only request scalars
