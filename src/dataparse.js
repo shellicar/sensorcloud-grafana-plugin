@@ -116,7 +116,6 @@ export class DataParser {
 
         var addValue = (name, value, timevalue) => {
             if (!(name in data2)) {
-                console.error('adding: ' + name);
                 data2[name] = [];
             }
             var val = [value, timevalue];

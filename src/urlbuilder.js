@@ -2,7 +2,8 @@
 
 export class UrlBuilder {
 
-    constructor(apikey, sensorid) {
+    constructor(baseUrl, apikey, sensorid) {
+        this.baseUrl = baseUrl;
         this.apikey = apikey;
         this.sensorid = sensorid;
     }
@@ -37,7 +38,7 @@ export class UrlBuilder {
     }
 
     buildUrl(str, arr) {
-        var baseUrl = "https://sensor-cloud.io/api/sensor/v2";
+        var baseUrl = this.baseUrl;
         var url = baseUrl + str;
 
         var opt = [];

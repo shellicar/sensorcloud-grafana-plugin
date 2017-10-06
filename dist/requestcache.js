@@ -55,7 +55,12 @@ System.register(["lodash"], function (_export, _context) {
                         options.withCredentials = this.withCredentials;
                         options.headers = this.headers;
 
-                        return this.backendSrv.datasourceRequest(options);
+                        var promise = this.backendSrv.datasourceRequest(options);
+                        promise.then(function (x) {
+                            console.info("Request complete: " + x.status);
+                            return x;
+                        });
+                        return promise;
                     }
                 }, {
                     key: "doRequest",

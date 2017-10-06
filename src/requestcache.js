@@ -17,7 +17,12 @@ export class RequestCache {
         options.withCredentials = this.withCredentials;
         options.headers = this.headers;
 
-        return this.backendSrv.datasourceRequest(options);
+        var promise = this.backendSrv.datasourceRequest(options);
+        promise.then(x => {
+            console.info("Request complete: " + x.status);
+            return x;
+        });
+        return promise;
     }
 
     doRequest(url, cachekey, func) {

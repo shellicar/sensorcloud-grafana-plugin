@@ -148,7 +148,6 @@ System.register([], function (_export, _context) {
 
                         var addValue = function addValue(name, value, timevalue) {
                             if (!(name in data2)) {
-                                console.error('adding: ' + name);
                                 data2[name] = [];
                             }
                             var val = [value, timevalue];

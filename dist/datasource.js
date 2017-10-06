@@ -51,7 +51,8 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             this.sensorid = "";
             this.apikey = "";
           }
-          this.builder = new UrlBuilder(this.apikey, this.sensorid);
+
+          this.builder = new UrlBuilder(instanceSettings.url, this.apikey, this.sensorid);
 
           this.type = instanceSettings.type;
           this.name = instanceSettings.name;
@@ -105,9 +106,11 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
               url: url,
               query: [this.makeISOString(query.range.from), this.makeISOString(query.range.to), query.maxDataPoints, query.targets]
             };
+            console.info("cacheKey: ");
+            console.info(cacheKey);
 
             var promise = this.requester.doRequest(url, cacheKey, function (x) {
-
+              console.info("parsing request");
               //var pq = this.parseQuery(x, query);
               var pq = _this.parseQueryAgg(x, query);
               return pq;
@@ -181,9 +184,6 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
           value: function parseQueryExt(streams, query, api_call, parse_func, extra_arr) {
             //var streams = str.data._embedded.streams;
 
-            console.error("streams");
-            console.error(streams);
-
             var streamid = streams.join(",");
 
             var arr = [];
@@ -248,7 +248,6 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
 
             for (var i = 0; i < streams.length; ++i) {
               var str = streams[i];
-              console.error("str=" + str);
               var multiple = streams.length > 1;
 
               var arr = ["aggperiod=" + query.intervalMs];
@@ -292,12 +291,9 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
             var _this4 = this;
 
             var streams = str.data._embedded.streams;
-            console.error("streams");
-            console.error(streams);;
             streams = streams.map(function (x) {
               return x.id;
             });
-            console.error(streams);
 
             var multiple = streams.length > 1;
             return this.parseQueryExt(streams, query, '/observations', function (x) {
@@ -338,6 +334,7 @@ System.register(["lodash", "./dataparse.js", "./urlbuilder.js", "./requestcache.
               url: url,
               method: 'GET'
             }).then(function (response) {
+              console.info("response=" + response.status);
               if (response.status === 200) {
                 console.info("Response = 200");
 

@@ -33,9 +33,10 @@ System.register([], function (_export, _context) {
             }();
 
             _export('UrlBuilder', UrlBuilder = function () {
-                function UrlBuilder(apikey, sensorid) {
+                function UrlBuilder(baseUrl, apikey, sensorid) {
                     _classCallCheck(this, UrlBuilder);
 
+                    this.baseUrl = baseUrl;
                     this.apikey = apikey;
                     this.sensorid = sensorid;
                 }
@@ -74,7 +75,7 @@ System.register([], function (_export, _context) {
                 }, {
                     key: 'buildUrl',
                     value: function buildUrl(str, arr) {
-                        var baseUrl = "https://sensor-cloud.io/api/sensor/v2";
+                        var baseUrl = this.baseUrl;
                         var url = baseUrl + str;
 
                         var opt = [];

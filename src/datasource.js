@@ -15,7 +15,8 @@ export class GenericDatasource {
       this.sensorid = "";
       this.apikey = "";
     }
-    this.builder = new UrlBuilder(this.apikey, this.sensorid);
+
+    this.builder = new UrlBuilder(instanceSettings.url, this.apikey, this.sensorid);
 
     this.type = instanceSettings.type;
     this.name = instanceSettings.name;
@@ -68,9 +69,11 @@ export class GenericDatasource {
         query.targets
       ]
     };
+    console.info("cacheKey: ");
+    console.info(cacheKey);
 
     var promise = this.requester.doRequest(url, cacheKey, x => {
-
+      console.info("parsing request");
       //var pq = this.parseQuery(x, query);
       var pq = this.parseQueryAgg(x, query);
       return pq;
@@ -143,9 +146,6 @@ export class GenericDatasource {
   parseQueryExt(streams, query, api_call, parse_func, extra_arr) {
     //var streams = str.data._embedded.streams;
 
-    console.error("streams");
-    console.error(streams);
-
     var streamid = streams.join(",");
 
     var arr = [];
@@ -209,7 +209,6 @@ export class GenericDatasource {
 
     for (var i = 0; i < streams.length; ++i) {
       var str = streams[i];
-      console.error("str=" + str);
       var multiple = streams.length > 1;
 
       var arr = ["aggperiod=" + query.intervalMs];
@@ -256,10 +255,7 @@ export class GenericDatasource {
 
   parseQuery(str, query) {
     var streams = str.data._embedded.streams;
-    console.error("streams");
-    console.error(streams);;
     streams = streams.map(x => x.id);
-    console.error(streams);
 
     var multiple = streams.length > 1;
     return this.parseQueryExt(streams, query, '/observations', x => {
@@ -295,8 +291,10 @@ export class GenericDatasource {
       url: url,
       method: 'GET',
     }).then(response => {
+      console.info("response=" + response.status);
       if (response.status === 200) {
         console.info("Response = 200");
+
 
         return this.parseTestResult(response.data);
       }
