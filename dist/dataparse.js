@@ -55,7 +55,13 @@ System.register([], function (_export, _context) {
                     value: function parseAggData(data) {
 
                         console.info("parseAggData");
-                        var target = data._embedded.stream._links.id;
+                        console.error('target=' + target);
+
+                        // find stream ID
+                        var target = data._embedded.stream.id;
+                        if (target == null) target = data._embedded.stream._links.id;
+
+                        console.error('target=' + target);
 
                         var result = {};
 
